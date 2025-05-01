@@ -135,19 +135,21 @@ def bounded_mutation(individual, mu, sigma, indpb):
     return individual,
 
 def evaluate(terrain):
+    peaks = count_peaks(terrain)
     lakes, seas = count_lakes_seas(terrain)
     coverage = water_coverage(terrain)
     variability = terrain_variability(terrain)
     roughness = terrain_roughness(terrain)
 
-    # Goals: 2–3 lakes, 20% water, moderate variability, smoothness
+    # Goals: 3-4 peaks, 2–3 lakes, 0-1 seas, 40% water, moderate variability, smoothness
+    peak_score = -abs(peaks - 3.5) # best if ~3-4 peaks
     lake_score = -abs(lakes - 2.5)  # best if ~2–3 lakes
     sea_score = -abs(seas - 0.5) # best if ~0–1 seas
-    water_score = -abs(coverage - 0.4)  # best if ~20% flooded
+    water_score = -abs(coverage - 0.4)  # best if ~40% flooded
     var_score = -abs(variability - 0.13)  # ideal variability
     rough_score = -abs(roughness - 0.09)   # ideal roughness
 
-    return lake_score + sea_score + water_score + var_score + rough_score,
+    return peak_score + lake_score + sea_score + water_score + var_score + rough_score,
 
 def main():
     LENGTH = 100     # number of terrain points
