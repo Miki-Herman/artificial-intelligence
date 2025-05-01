@@ -34,7 +34,6 @@ def plotterrain(t):
 
     ax.fill_between(x, sea, color="turquoise")
     ax.fill_between(x, t, color="sandybrown")
-    ax.axis("off")
 
     plt.show()
 
@@ -172,7 +171,7 @@ def main():
     toolbox.register("evaluate", evaluate)
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
     toolbox.register("mutate", bounded_mutation, mu=0, sigma=0.01, indpb=0.1)
-    toolbox.register("select", tools.selTournament, tournsize=3)
+    toolbox.register("select", tools.selTournament, tournsize=15)
 
     pop = toolbox.population(n=POP_SIZE)
 
