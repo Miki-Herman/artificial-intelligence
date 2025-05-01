@@ -141,18 +141,21 @@ def evaluate(terrain):
     variability = terrain_variability(terrain)
     roughness = terrain_roughness(terrain)
 
-    # Goals: 3-4 peaks, 2–3 lakes, 0-1 seas, 40% water, moderate variability, smoothness
-    peak_score = -abs(peaks - 3.5) # best if ~3-4 peaks
-    lake_score = -abs(lakes - 2.5)  # best if ~2–3 lakes
-    sea_score = -abs(seas - 0.5) # best if ~0–1 seas
-    water_score = -abs(coverage - 0.4)  # best if ~40% flooded
-    var_score = -abs(variability - 0.13)  # ideal variability
-    rough_score = -abs(roughness - 0.09)   # ideal roughness
+    # punish high peaks
+    peak_penality = sum(1 for h in terrain if h > 0.8) * -0.5
 
-    return peak_score + lake_score + sea_score + water_score + var_score + rough_score,
+    # Goals: 5-6 peaks, 2–3 lakes, 0-1 seas, 40% water, moderate variability, smoothness
+    peak_score = -abs(peaks - 3.5) # best if ~5-6 peaks
+    lake_score = -abs(lakes - 2.5)  # best if ~6–7 lakes
+    sea_score = -abs(seas - 1.5) # best if ~0–1 seas
+    water_score = -abs(coverage - 0.6)  # best if ~40% flooded
+    var_score = -abs(variability - 0.08)  # ideal variability
+    rough_score = -abs(roughness - 0.02)   # ideal roughness
+
+    return peak_score + lake_score + sea_score + water_score + var_score + rough_score + peak_penality,
 
 def main():
-    LENGTH = 100     # number of terrain points
+    LENGTH = 50     # number of terrain points
     POP_SIZE = 1000  # number of individuals in the population
     NGEN = 100       # number of generations to evolve
     MUTPB = 0.2      # probability of mutation
