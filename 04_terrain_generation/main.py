@@ -34,7 +34,7 @@ def plotterrain(t):
 
     ax.fill_between(x, sea, color="turquoise")
     ax.fill_between(x, t, color="sandybrown")
-
+    plt.axis("off")
     plt.show()
 
 
@@ -127,12 +127,6 @@ def terrain_roughness(t):
     """
     return sum(abs(t[i] - t[i-1]) for i in range(1, len(t))) / (len(t)-1)
 
-def bounded_mutation(individual, mu, sigma, indpb):
-    tools.mutGaussian(individual, mu, sigma, indpb)
-    for i in range(len(individual)):
-        individual[i] = min(max(individual[i], 0.0), 1.0)
-    return individual,
-
 def evaluate(terrain):
     peaks = count_peaks(terrain)
     lakes, seas = count_lakes_seas(terrain)
@@ -152,6 +146,12 @@ def evaluate(terrain):
     rough_score = -abs(roughness - 0.02)   # ideal roughness
 
     return peak_score + lake_score + sea_score + water_score + var_score + rough_score + peak_penality,
+
+def bounded_mutation(individual, mu, sigma, indpb):
+    tools.mutGaussian(individual, mu, sigma, indpb)
+    for i in range(len(individual)):
+        individual[i] = min(max(individual[i], 0.0), 1.0)
+    return individual,
 
 def main():
     LENGTH = 50     # number of terrain points
