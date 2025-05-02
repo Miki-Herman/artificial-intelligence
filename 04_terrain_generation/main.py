@@ -1,4 +1,5 @@
 import random
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from deap import base, creator, tools, algorithms
@@ -29,12 +30,15 @@ def plotterrain(t):
 
     fig, ax = plt.subplots()
 
+    name = f"{int(time.time())}.png"
+
     x = range(len(t))
     sea = [0.5 for i in range(len(t))]
 
     ax.fill_between(x, sea, color="turquoise")
     ax.fill_between(x, t, color="sandybrown")
     plt.axis("off")
+    plt.savefig(f"C:/Projekty/Skola/artificial-intelligence/04_terrain_generation/terrains/{name}", format="png", bbox_inches="tight")
     plt.show()
 
 
@@ -154,7 +158,7 @@ def bounded_mutation(individual, mu, sigma, indpb):
     return individual,
 
 def main():
-    LENGTH = 50     # number of terrain points
+    LENGTH = 50      # number of terrain points
     POP_SIZE = 1000  # number of individuals in the population
     NGEN = 100       # number of generations to evolve
     MUTPB = 0.2      # probability of mutation
@@ -171,7 +175,7 @@ def main():
     toolbox.register("evaluate", evaluate)
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
     toolbox.register("mutate", bounded_mutation, mu=0, sigma=0.01, indpb=0.1)
-    toolbox.register("select", tools.selTournament, tournsize=15)
+    toolbox.register("select", tools.selTournament, tournsize=5)
 
     pop = toolbox.population(n=POP_SIZE)
 
