@@ -1,0 +1,36 @@
+{
+    "created_at": "1746280622",
+    "genom": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1
+    ],
+    "score": 200,
+    "trained_on": [
+        "always_cooperate",
+        "random_answer",
+        "tit_for_tat",
+        "always_defect",
+        "tit_for_two_tats",
+        "grim_trigger",
+        "biased_random",
+        "pavlov",
+        "probing",
+        "soft_grudger",
+        "alternator",
+        "generous_tit_for_tat"
+    ]
+}
