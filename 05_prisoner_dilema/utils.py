@@ -45,23 +45,36 @@ def play(f1, f2, stepsnum):
 
 def write_best_genom(genom, participants, score):
 
-    if os.path.getsize("best_genom.json") > 0:
+    data = {
+        "created_at": f"{int(time.time())}",
+        "genom": genom,
+        "trained_on": [i.__name__ for i in participants],
+        "score": score
+    }
+
+    if os.path.getsize("best_genom.json") > 0 and os.path.exists("best_genom.json"):
         with open("best_genom.json", "r") as f:
-            data = json.load(f)
+            loaded_data = json.load(f)
 
-        with open("best_genom_history.json", "w+") as f:
+        with open("genom_history.json", "r") as f:
             history_data = json.load(f)
-            history_data.append(data)
-            f.write(json.dumps(history_data, indent=4, sort_keys=True, default=str))
 
-    with open("best_genom.json", "w") as f:
-        data = {
-            "created_at": f"{int(time.time())}",
-            "genom": genom,
-            "trained_on": [i.__name__ for i in participants],
-            "score": score
-        }
-        f.write(json.dumps(data, indent=4, sort_keys=True, default=str))
+        if score < loaded_data["score"]:
+            with open("genom_history.json", "w") as f:
+                history_data["history"].append(loaded_data)
+                f.write(json.dumps(history_data, indent=4, sort_keys=True, default=str))
+
+            with open("best_genom.json", "w") as f:
+                f.write(json.dumps(data, indent=4, sort_keys=True, default=str))
+
+        if score > loaded_data["score"]:
+            with open("genom_history.json", "w") as f:
+                history_data["history"].append(data)
+                f.write(json.dumps(history_data, indent=4, sort_keys=True, default=str))
+
+    else:
+        with open("best_genom.json", "w") as f:
+            f.write(json.dumps(data, indent=4, sort_keys=True, default=str))
 
 def load_best_genom():
     with open("best_genom.json", "r") as f:

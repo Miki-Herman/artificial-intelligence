@@ -10,24 +10,42 @@ if not best:
     print("Agent is not trained yet. Please train it first.")
     exit(1)
 
-def react_agent(my_history, other_history):
-    if len(my_history) == 0:
-        return 0
-    idx = 2 * my_history[-1] + other_history[-1]
+def zrada(my_history, other_history):
+    round_num = len(my_history)
+
+    # 1. Úvodní fáze: poznávání soupeře
+    if round_num < 3:
+        return 0  # spolupracuj pro navázání důvěry
+    elif round_num < 10:
+        if other_history[-1] == 1:
+            return 1  # test: pokud mě zradí brzo, odpověz zradou
+        return 0  # jinak dál spolupracuj
+
+    # 2. Detekce defektora
+    recent_defections = other_history[-5:].count(1)
+    total_defections = other_history.count(1)
+    if total_defections / round_num > 0.3 and recent_defections >= 3:
+        return 1  # zraď, pokud je soupeř defektor
+
+    # 3. Odpouštění
+    if other_history[-2:] == [0, 0]:
+        return 0  # odpustíme po 2 spolupracích
+
+    # 4. Genomová tabulka (paměť 2 tahy zpět)
+    idx = 8 * my_history[-2] + 4 * my_history[-1] + 2 * other_history[-2] + other_history[-1]
     return best[idx]
 
 # -------------- Trunaj ------------- #
 
 
 # seznam funkci o testování
-ucastníci = [
+ucastnici = [
     f for name, f in vars(strategies).items()
     if inspect.isfunction(f)
     and f.__module__ == 'strategies'
 ]
-random_ucastnici = [always_cooperate, random_answer, tick_for_tack, react_agent, grim_trigger, pavlov, two_defects]
-# funkce se mohou v seznamu i opakovat
-#ucastnici = [always_cooperate, always_cooperate, random_answer, random_answer, random_answer]
+
+ucastnici.append(zrada)
 
 STEPSNUM = 200
 
@@ -40,7 +58,7 @@ print("hra délky:", STEPSNUM)
 print("-----------------------------------------")
 
 for i in range(l):
-    for j in range(i+1, l):
+    for j in range(i, l):
         f1 = ucastnici[i]
         f2 = ucastnici[j]
         skore1, skore2 = play(f1, f2, STEPSNUM)
