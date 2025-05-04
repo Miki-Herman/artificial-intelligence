@@ -21,7 +21,7 @@ goal_pos = (7, 1)
 # Maximální vzdálenost v bludišti pro normalizaci
 max_distance = len(maze) + len(maze[0])
 
-# ---------- Agent a senzorické vstupy ----------
+# ---------- senzorické vstupy ----------
 def get_sensor_inputs(position):
     x, y = position
     # Vylepšené senzory - detekce vzdálenosti ke zdi v každém směru (maximálně 3 pole)
@@ -63,12 +63,12 @@ get_sensor_inputs.memory = [start_pos] * 3
 
 # ---------- Neuronová síť se 3 vrstvami ----------
 def nn_function(inp, genome):
-    # Vstupní vektor má 10 hodnot:
-    # - 4 vzdálenosti ke zdem
-    # - vzdálenost k cíli
-    # - úhel k cíli
-    # - příznak křižovatky
-    # - 3 předchozí pohyby (pouze x souřadnice)
+    """Vstupní vektor má 10 hodnot:
+    - 4 vzdálenosti ke zdem
+    - vzdálenost k cíli
+    - úhel k cíli
+    - příznak křižovatky
+    - 3 předchozí pohyby (pouze x souřadnice)"""
     inp = np.array(inp)
 
     # Pevná struktura neuronové sítě
@@ -125,7 +125,7 @@ def nn_navigate_me(position, genome):
     # Přiřadíme směry k pravděpodobnostem
     directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]  # ↑ ↓ ← →
 
-    # Stochastický výběr směru podle pravděpodobností - pomáhá vyhnout se cyklům
+    # Výběr směru podle pravděpodobností - pomáhá vyhnout se cyklům
     if random.random() < 0.9:  # 90% času vybíráme podle nejvyšší pravděpodobnosti
         move = np.argmax(probs)
     else:  # 10% času vybíráme náhodně pro průzkum
@@ -517,7 +517,7 @@ if successes > 0:
     print(f"Průměrný počet kroků pro úspěšné běhy: {avg_steps:.1f}")
 
 # ---------- Vizualizuj jeden úspěšný běh ----------
-print("\n👁 Vizualizace běhu nejlepšího agenta:")
+print("\n Vizualizace běhu nejlepšího agenta:")
 simulate_agent(best_genome, max_steps=100, visualize=True)
 
 # Uložení nejlepšího genomu pro budoucí použití
