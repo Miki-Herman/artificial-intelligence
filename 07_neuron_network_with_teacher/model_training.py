@@ -1,5 +1,3 @@
-import numpy as np
-import cv2 as cv
 import matplotlib.pyplot as plt
 from tensorflow.keras import layers, models, datasets
 
@@ -22,7 +20,7 @@ for i in range(16):
 
 plt.show()
 
-# ---------- Model ---------------
+# ---------- Model --------------- #
 model = models.Sequential()
 model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)))
 model.add(layers.MaxPooling2D((2, 2)))
