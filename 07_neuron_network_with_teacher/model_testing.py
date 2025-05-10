@@ -5,56 +5,128 @@ import matplotlib.pyplot as plt
 import random
 from tensorflow.keras import models
 
+# Define class names
 class_names = ['Airplane', 'Car', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
 
-# load trained model --> exits error if not trained
-model = models.load_model('./image_model.keras')
+# Define the models to test
+model_paths = [
+    './distilled_cifar10_model.keras',  # Student model with knowledge distillation
+    './baseline_cifar10_model.keras',   # Baseline model without distillation
+    './teacher_cifar10_model.keras'     # Teacher model
+]
 
-# prints the model summary --> info about layers etc
-model.summary()
-
+# Path to your test images
 image_path = "./images"
 
-# loads images from image folder for testing if the model is accurate on image that is not trained on
-image_files = [file for file in os.listdir(image_path) if file.lower().endswith(".jpg")]
-# shuffle image list to introduce randomness
+# Load image files from the directory
+image_files = [file for file in os.listdir(image_path) if file.lower().endswith((".jpg", ".jpeg", ".png"))]
+# Shuffle image list for randomness
 random.shuffle(image_files)
 
-count = len(image_files)
-success = 0
+# Function to test a model
+def test_model(model_path):
+    try:
+        # Load the model
+        print(f"\nLoading model from {model_path}...")
+        model = models.load_model(model_path)
 
-for image_file in image_files:
+        # If it's the distilled student model that was saved with custom loss function
+        # we need to recompile it with standard categorical crossentropy for predictions
+        if 'distilled' in model_path:
+            model.compile(
+                optimizer='adam',
+                loss='categorical_crossentropy',
+                metrics=['accuracy']
+            )
 
-    # label can be extracted from file name bcs of conventions
-    label = image_file.split('.')[0].split('_')[0]
+        # Print model summary
+        model.summary()
 
-    # loads testing image and standardizes color and image size --> some aren't exactly 32x32
-    image = cv.imread(os.path.join(image_path, image_file))
-    image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
-    image = cv.resize(image, (32, 32))
+        count = len(image_files)
+        success = 0
 
-    # shows image
-    plt.imshow(image, cmap=plt.get_cmap('gray'))
+        # Create a figure to display results
+        plt.figure(figsize=(15, 10))
 
-    print("========================================================")
-    print(f"Calculating prediction for image {image_file} ...")
+        # Process each image
+        for i, image_file in enumerate(image_files):
+            # Extract label from filename
+            label = image_file.split('.')[0].split('_')[0]
 
-    prediction = model.predict(np.array([image]) / 255)
-    index = np.argmax(prediction)
-    predicted_label = class_names[index]
+            # Load and preprocess the image
+            image = cv.imread(os.path.join(image_path, image_file))
+            if image is None:
+                print(f"Error loading image {image_file}, skipping...")
+                continue
 
-    if label.lower() == predicted_label.lower():
-        success += 1
+            image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+            image = cv.resize(image, (32, 32))
 
-    print(f"Prediction for image: {predicted_label}")
-    print(f"Actual label: {label}")
+            # Display progress
+            print("========================================================")
+            print(f"Calculating prediction for image {image_file} ...")
 
-    print("-------------------------------------------------------")
+            # Normalize and make prediction
+            prediction = model.predict(np.array([image]) / 255, verbose=0)
+            index = np.argmax(prediction)
+            predicted_label = class_names[index]
 
-print("##############################################")
-print("--------------- Final score ------------------")
-print("##############################################")
+            # Check if prediction matches label
+            is_correct = label.lower() == predicted_label.lower()
+            if is_correct:
+                success += 1
+                color = 'green'
+            else:
+                color = 'red'
 
-print(f"Successfully predicted: {success}/{count}")
-print(f"Unsuccessfully predicted: {count - success}/{count}")
-print(f"Accuracy: {(success/count)*100.0:.2f}%")
+            # Display results
+            print(f"Prediction: {predicted_label} (Confidence: {prediction[0][index]:.4f})")
+            print(f"Actual label: {label}")
+            print(f"Correct: {'Yes' if is_correct else 'No'}")
+
+            # Plot the image with prediction (max 16 images)
+            if i < 16:
+                plt.subplot(4, 4, i+1)
+                plt.imshow(image)
+                plt.title(f"True: {label}", fontsize=10)
+                plt.xlabel(f"Pred: {predicted_label}", color=color, fontsize=10)
+                plt.xticks([])
+                plt.yticks([])
+
+        # Show the figure
+        plt.tight_layout()
+        plt.savefig(f"{os.path.basename(model_path)}_results.png")
+        plt.show()
+
+        # Print final score
+        print("\n##############################################")
+        print(f"--- RESULTS FOR {os.path.basename(model_path)} ---")
+        print("##############################################")
+        print(f"Successfully predicted: {success}/{count}")
+        print(f"Unsuccessfully predicted: {count - success}/{count}")
+        print(f"Accuracy: {(success/count)*100.0:.2f}%")
+
+        return (success/count)*100.0
+
+    except Exception as e:
+        print(f"Error testing model {model_path}: {str(e)}")
+        return 0.0
+
+# Test each model and collect results
+results = {}
+for model_path in model_paths:
+    try:
+        accuracy = test_model(model_path)
+        results[os.path.basename(model_path)] = accuracy
+    except FileNotFoundError:
+        print(f"Model file {model_path} not found, skipping...")
+
+# Compare results
+if results:
+    print("\n##############################################")
+    print("------------- COMPARISON RESULTS -------------")
+    print("##############################################")
+    for model_name, accuracy in sorted(results.items(), key=lambda x: x[1], reverse=True):
+        print(f"{model_name}: {accuracy:.2f}%")
+else:
+    print("\nNo models were successfully tested. Please check the model paths.")
