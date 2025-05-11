@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, models, datasets, applications
-import tensorflow.keras.backend as K
 
 # Load and preprocess data
 (training_images, training_labels), (test_images, test_labels) = datasets.cifar10.load_data()
