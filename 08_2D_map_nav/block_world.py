@@ -5,11 +5,7 @@ import random
 import numpy as np
 from collections import deque
 
-
-
-
 BLOCKTYPES = 5
-
 
 # třída reprezentující prostředí
 class Env:
@@ -68,34 +64,301 @@ class Env:
      
     def get_tile_type(self, x, y):
         return self.arr[y, x]
-    
+
+    # --------- Pomocné funkce pro plánovací funkce
+    def _heuristic(self, x1, y1, x2, y2):
+        """
+        Výpočet Manhattan vzdálenosti mezi dvěma body.
+
+        Args:
+            x1 (int): X-souřadnice prvního bodu.
+            y1 (int): Y-souřadnice prvního bodu.
+            x2 (int): X-souřadnice druhého bodu.
+            y2 (int): Y-souřadnice druhého bodu.
+
+        Returns:
+            int: Manhattan vzdálenost mezi body.
+        """
+        return abs(x1 - x2) + abs(y1 - y2)
+
+
+    def _reconstruct_path(self, came_from, goal_x, goal_y):
+        """
+        Rekonstruuje cestu od cíle k počátku a vrátí ji jako frontu.
+
+        Args:
+            came_from (list): 2D pole předchůdců bodů.
+            goal_x (int): X-souřadnice cílového bodu.
+            goal_y (int): Y-souřadnice cílového bodu.
+
+        Returns:
+            deque: Fronta s cestou od počátku k cíli.
+        """
+        path = deque()
+        x, y = goal_x, goal_y
+
+        # Přidání cílového bodu do cesty
+        path.appendleft((x, y))
+
+        # Procházení předchůdců až k počátečnímu bodu
+        while came_from[y][x] != (-1, -1):
+            x, y = came_from[y][x]
+            path.appendleft((x, y))
+
+        return path
+
     
     # vrací dvojici 1. frontu dvojic ze startu do cíle, 2. seznam dlaždic
     # k zobrazení - hodí se např. pro zvýraznění cesty, nebo expandovaných uzlů
     # start a cíl se nastaví pomocí set_start a set_goal
     # <------    ZDE vlastní metoda
-    def path_planner(self):
-        
-        # přímo zadrátovaná cesta z bodu (1, 0) do (9, 7)
-        d = deque()
-        d.appendleft((9, 7))
-        d.appendleft((9, 6))
-        d.appendleft((9, 5))
-        d.appendleft((9, 4))
-        d.appendleft((9, 3))
-        d.appendleft((9, 2))
-        d.appendleft((9, 1))
-        d.appendleft((9, 0))
-        d.appendleft((8, 0))
-        d.appendleft((7, 0))
-        d.appendleft((6, 0))
-        d.appendleft((5, 0))
-        d.appendleft((4, 0))
-        d.appendleft((3, 0))
-        d.appendleft((2, 0))
-        d.appendleft((1, 0))
-                
-        return d, list(d)
+    def dijkstra(self, start, goal):
+        # Inicializace 2D pole nákladů s nekonečnem
+        width = self.width
+        height = self.height
+
+        start_x = start[0]
+        start_y = start[1]
+
+        goal_x = goal[0]
+        goal_y = goal[1]
+
+        cost = [[float('inf') for _ in range(width)] for _ in range(height)]
+        cost[start_y][start_x] = 0
+
+        # Inicializace 2D pole předchůdců
+        came_from = [[(-1, -1) for _ in range(width)] for _ in range(height)]
+
+        # Seznam expandovaných uzlů pro vizualizaci
+        expanded = []
+
+        # Prioritní fronta jako seznam dvojic (náklady, (x, y))
+        frontier = [(0, (start_x, start_y))]
+
+        # Inicializace pole pro sledování navštívených uzlů
+        visited = [[False for _ in range(width)] for _ in range(height)]
+
+        # Hlavní smyčka algoritmu
+        while len(frontier) > 0:
+            # Výběr uzlu s nejnižšími náklady
+            current_cost, (current_x, current_y) = frontier[0]
+            frontier.pop(0)
+
+            # Přeskočení již zpracovaných uzlů
+            if visited[current_y][current_x]:
+                continue
+
+            # Označení uzlu jako navštíveného
+            visited[current_y][current_x] = True
+
+            # Přidání do seznamu expandovaných uzlů
+            if (current_x != start_x or current_y != start_y) and (current_x != goal_x or current_y != goal_y):
+                expanded.append((current_x, current_y))
+
+            # Ukončení při dosažení cíle
+            if current_x == goal_x and current_y == goal_y:
+                break
+
+            # Získání seznamu sousedů
+            neighbors = self.get_neighbors(current_x, current_y)
+
+            # Expanze sousedů
+            for (next_x, next_y) in neighbors:
+                if not visited[next_y][next_x]:
+                    # Náklad přechodu = 1
+                    new_cost = current_cost + 1
+
+                    # Pokud byla nalezena levnější cesta
+                    if new_cost < cost[next_y][next_x]:
+                        cost[next_y][next_x] = new_cost
+                        came_from[next_y][next_x] = (current_x, current_y)
+
+                        # Vyhledání vhodné pozice ve frontě
+                        i = 0
+                        while i < len(frontier) and frontier[i][0] < new_cost:
+                            i += 1
+
+                        # Vložení na správné místo
+                        frontier.insert(i, (new_cost, (next_x, next_y)))
+
+        # Rekonstrukce cesty
+        path = self._reconstruct_path(came_from, goal_x, goal_y)
+
+        return path, expanded
+
+    def a_star(self, start, goal):
+        # Inicializace proměnných
+        width = self.width
+        height = self.height
+
+        start_x = start[0]
+        start_y = start[1]
+        goal_x = goal[0]
+        goal_y = goal[1]
+
+        # Inicializace 2D pole g-skóre (nákladů ze startu) s nekonečnem
+        g_score = [[float('inf') for _ in range(width)] for _ in range(height)]
+        g_score[start_y][start_x] = 0
+
+        # Inicializace 2D pole f-skóre (celkových nákladů) s nekonečnem
+        f_score = [[float('inf') for _ in range(width)] for _ in range(height)]
+        f_score[start_y][start_x] = self._heuristic(start_x, start_y, goal_x, goal_y)
+
+        # Inicializace 2D pole předchůdců
+        came_from = [[(-1, -1) for _ in range(width)] for _ in range(height)]
+
+        # Seznam expandovaných uzlů pro vizualizaci
+        expanded = []
+
+        # Prioritní fronta jako seznam trojic (f-skóre, g-skóre, (x, y))
+        # g-skóre je důležité pro případy, kdy f-skóre je stejné
+        frontier = [(f_score[start_y][start_x], 0, (start_x, start_y))]
+
+        # Inicializace pole pro sledování navštívených uzlů
+        visited = [[False for _ in range(width)] for _ in range(height)]
+
+        # Hlavní smyčka algoritmu
+        while len(frontier) > 0:
+            # Výběr uzlu s nejnižším f-skóre
+            _, _, (current_x, current_y) = frontier[0]
+            frontier.pop(0)
+
+            # Přeskočení již zpracovaných uzlů
+            if visited[current_y][current_x]:
+                continue
+
+            # Označení uzlu jako navštíveného
+            visited[current_y][current_x] = True
+
+            # Přidání do seznamu expandovaných uzlů
+            if (current_x != start_x or current_y != start_y) and (current_x != goal_x or current_y != goal_y):
+                expanded.append((current_x, current_y))
+
+            # Ukončení při dosažení cíle
+            if current_x == goal_x and current_y == goal_y:
+                break
+
+            # Získání seznamu sousedů
+            neighbors = self.get_neighbors(current_x, current_y)
+
+            # Expanze sousedů
+            for (next_x, next_y) in neighbors:
+                if not visited[next_y][next_x]:
+                    # Výpočet g-skóre pro souseda (náklad přechodu = 1)
+                    tentative_g_score = g_score[current_y][current_x] + 1
+
+                    # Pokud byla nalezena levnější cesta
+                    if tentative_g_score < g_score[next_y][next_x]:
+                        # Aktualizace předchůdce
+                        came_from[next_y][next_x] = (current_x, current_y)
+
+                        # Aktualizace skóre
+                        g_score[next_y][next_x] = tentative_g_score
+                        f_score[next_y][next_x] = tentative_g_score + self._heuristic(next_x, next_y, goal_x, goal_y)
+
+                        # Kontrola, zda uzel již není ve frontě
+                        already_in_frontier = False
+                        for i in range(len(frontier)):
+                            if frontier[i][2] == (next_x, next_y):
+                                # Aktualizace f-skóre ve frontě
+                                frontier[i] = (f_score[next_y][next_x], g_score[next_y][next_x], (next_x, next_y))
+                                already_in_frontier = True
+                                break
+
+                        # Přidání do fronty, pokud tam ještě není
+                        if not already_in_frontier:
+                            frontier.append((f_score[next_y][next_x], g_score[next_y][next_x], (next_x, next_y)))
+
+                # Seřazení fronty podle f-skóre (primární klíč) a g-skóre (sekundární klíč)
+                frontier.sort()
+
+        # Rekonstrukce cesty
+        path = self._reconstruct_path(came_from, goal_x, goal_y)
+
+        return path, expanded
+
+    def greedy_best_first(self, start, goal):
+        # Inicializace proměnných
+        width = self.width
+        height = self.height
+
+        start_x = start[0]
+        start_y = start[1]
+        goal_x = goal[0]
+        goal_y = goal[1]
+
+        # Inicializace 2D pole předchůdců
+        came_from = [[(-1, -1) for _ in range(width)] for _ in range(height)]
+
+        # Seznam expandovaných uzlů pro vizualizaci
+        expanded = []
+
+        # Prioritní fronta jako seznam dvojic (heuristika, (x, y))
+        h_start = self._heuristic(start_x, start_y, goal_x, goal_y)
+        frontier = [(h_start, (start_x, start_y))]
+
+        # Inicializace pole pro sledování navštívených uzlů
+        visited = [[False for _ in range(width)] for _ in range(height)]
+
+        # Hlavní smyčka algoritmu
+        while len(frontier) > 0:
+            # Výběr uzlu s nejnižší heuristikou
+            _, (current_x, current_y) = frontier[0]
+            frontier.pop(0)
+
+            # Přeskočení již zpracovaných uzlů
+            if visited[current_y][current_x]:
+                continue
+
+            # Označení uzlu jako navštíveného
+            visited[current_y][current_x] = True
+
+            # Přidání do seznamu expandovaných uzlů
+            if (current_x != start_x or current_y != start_y) and (current_x != goal_x or current_y != goal_y):
+                expanded.append((current_x, current_y))
+
+            # Ukončení při dosažení cíle
+            if current_x == goal_x and current_y == goal_y:
+                break
+
+            # Získání seznamu sousedů
+            neighbors = self.get_neighbors(current_x, current_y)
+
+            # Expanze sousedů
+            for (next_x, next_y) in neighbors:
+                if not visited[next_y][next_x]:
+                    # Výpočet heuristické hodnoty
+                    h = self._heuristic(next_x, next_y, goal_x, goal_y)
+
+                    # Zaznamenání předchůdce
+                    came_from[next_y][next_x] = (current_x, current_y)
+
+                    # Vyhledání vhodné pozice ve frontě
+                    i = 0
+                    while i < len(frontier) and frontier[i][0] < h:
+                        i += 1
+
+                    # Vložení na správné místo
+                    frontier.insert(i, (h, (next_x, next_y)))
+
+        # Rekonstrukce cesty
+        path = self._reconstruct_path(came_from, goal_x, goal_y)
+
+        return path, expanded
+
+
+    def path_planner(self, algorithm="dijkstra"):
+
+        start = (self.startx, self.starty)
+        goal = (self.goalx, self.goaly)
+
+        # Výběr algoritmu pro plánování cesty
+        if algorithm == "dijkstra":
+            return self.dijkstra(start, goal)
+        elif algorithm == "greedy":
+            return self.greedy_best_first(start, goal)
+        else:
+            return self.a_star(start, goal)
     
        
         
@@ -113,8 +376,6 @@ class Ufo:
     def move(self, x, y):
         self.x = x
         self.y = y
-
-   
     
     # reaktivní navigace <------------------------ !!!!!!!!!!!! ZDE DOPLNIT
     def reactive_go(self, env):
@@ -152,10 +413,6 @@ class Ufo:
         if self.path:
             return self.path.popleft()
         return (-1, -1)
-       
-
-
-
 
 # definice prostředí -----------------------------------
 
@@ -213,9 +470,7 @@ pygame.font.init()
 WHITE = (255, 255, 255)
 
 
-
 FPS = 2
-
 
 
 # pond, tree, house, car
@@ -245,12 +500,6 @@ TREE2 = pygame.transform.scale(TREE2_IMAGE, (TILESIZE, TILESIZE))
 UFO = pygame.transform.scale(UFO_IMAGE, (TILESIZE, TILESIZE))
 FLAG = pygame.transform.scale(FLAG_IMAGE, (TILESIZE, TILESIZE))
 
-
-
-
-        
-        
-        
 
 def draw_window(ufo, env):
 
@@ -291,8 +540,8 @@ def main():
     env.set_goal(9, 7)
     
     
-    #p, t = env.path_planner()   # cesta pomocí path_planneru prostředí
-    #ufo.set_path(p, t)
+    p, t = env.path_planner(algorithm="a_star")   # cesta pomocí path_planneru prostředí
+    ufo.set_path(p, t)
     # ---------------------------------------------------
     
     
@@ -308,17 +557,14 @@ def main():
 
         # <---- reaktivní pohyb dokud nedojde do cíle 
         if (ufo.x != env.goalx) or (ufo.y != env.goaly):        
-            x, y = ufo.reactive_go(env)
-            
-            #x, y = ufo.execute_path()
+            #x, y = ufo.reactive_go(env)
+            x, y = ufo.execute_path()
             
             if env.is_valid_xy(x, y):
                 ufo.move(x, y)
             else:
                 print('[', x, ',', y, ']', "wrong coordinate !")
-        
 
-                        
         draw_window(ufo, env)
         
         for event in pygame.event.get():
