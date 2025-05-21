@@ -89,6 +89,8 @@ class Agent:
         self.steps_alive = 0
         self.reached_flag = False
         self.dead = False
+        self.prev_dist_to_flag = math.sqrt((10 - FLAG_POS[0])**2 + (10 - FLAG_POS[1])**2)
+        self.moves_toward_flag = 0
 
         # Initialize neural network weights
         if genome is None:
@@ -112,12 +114,17 @@ class Agent:
             self.fitness += 10000
             # Additional bonus for reaching it quickly
             self.fitness += (5000 - self.steps_alive)
+            # Bonus for consistently moving toward the flag
+            self.fitness += self.moves_toward_flag * 50
         else:
             # Factor in distance to the flag if didn't reach it
             dist_to_flag = math.sqrt((self.rect.x - FLAG_POS[0])**2 +
                                      (self.rect.y - FLAG_POS[1])**2)
             # Closer to flag is better (inversely proportional)
             self.fitness += (WIDTH + HEIGHT - dist_to_flag) * 5
+
+            # Add the bonus for moves toward flag
+            self.fitness += self.moves_toward_flag * 20
 
         return self.fitness
 
@@ -273,9 +280,24 @@ def nn_navigate_me(agent, inp, mines):
     elif new_y > HEIGHT - agent.rect.height:
         new_y = HEIGHT - agent.rect.height
 
+    # Calculate current distance to flag before moving
+    current_dist_to_flag = math.sqrt((agent.rect.x - FLAG_POS[0])**2 +
+                                     (agent.rect.y - FLAG_POS[1])**2)
+
     # Update agent position
     agent.rect.x = new_x
     agent.rect.y = new_y
+
+    # Calculate new distance to flag after moving
+    new_dist_to_flag = math.sqrt((agent.rect.x - FLAG_POS[0])**2 +
+                                 (agent.rect.y - FLAG_POS[1])**2)
+
+    # Track if agent moved toward flag
+    if new_dist_to_flag < current_dist_to_flag:
+        agent.moves_toward_flag += 1
+    # Optional: penalty for moving away from flag
+    elif new_dist_to_flag > current_dist_to_flag:
+        agent.moves_toward_flag -= 0.5
 
 # 4. Fitness calculation function
 def handle_mes_fitnesses(agents, mines, steps_elapsed):
@@ -429,16 +451,21 @@ def draw_window(agents, mines, generation, step, best_fitness):
     # Draw flag
     WIN.blit(FLAG, FLAG_POS)
 
-    # Draw text info
+    # Draw text info with proper positioning (well within screen boundaries)
     generation_text = LEVEL_FONT.render(f"Generation: {generation}", 1, WHITE)
     step_text = LEVEL_FONT.render(f"Step: {step}", 1, WHITE)
-    fitness_text = LEVEL_FONT.render(f"Best Fitness: {best_fitness}", 1, WHITE)
+    fitness_text = LEVEL_FONT.render(f"Best Fitness: {int(best_fitness)}", 1, WHITE)
     alive_text = LEVEL_FONT.render(f"Alive: {sum(1 for a in agents if not a.dead)}/{len(agents)}", 1, WHITE)
+    mines_text = LEVEL_FONT.render(f"Mines: {len(mines)}", 1, WHITE)
 
-    WIN.blit(generation_text, (10, HEIGHT - 100))
-    WIN.blit(step_text, (10, HEIGHT - 75))
-    WIN.blit(fitness_text, (10, HEIGHT - 50))
-    WIN.blit(alive_text, (10, HEIGHT - 25))
+    # Position text in top-left corner with padding
+    padding = 10
+    text_height = 20
+    WIN.blit(generation_text, (padding, padding))
+    WIN.blit(step_text, (padding, padding + text_height))
+    WIN.blit(fitness_text, (padding, padding + text_height * 2))
+    WIN.blit(alive_text, (padding, padding + text_height * 3))
+    WIN.blit(mines_text, (padding, padding + text_height * 4))
 
     # Draw mines
     for mine in mines:
@@ -447,9 +474,12 @@ def draw_window(agents, mines, generation, step, best_fitness):
     # Draw agents
     for agent in agents:
         if not agent.dead:
-            color = GREEN if agent.reached_flag else WHITE
-            agent_rect = pygame.Rect(agent.rect.x, agent.rect.y, agent.rect.width, agent.rect.height)
-            WIN.blit(ME, (agent.rect.x, agent.rect.y))
+            if agent.reached_flag:
+                # Flag reached agents in yellow
+                pygame.draw.rect(WIN, (255, 255, 0), agent.rect)
+            else:
+                # Regular agents with normal image
+                WIN.blit(ME, (agent.rect.x, agent.rect.y))
 
     pygame.display.update()
 
@@ -491,8 +521,8 @@ def main():
         else:
             population = create_next_generation(previous_population)
 
-        # Create mines for this generation
-        num_mines = min(2 + generation // 5, 8)  # Slower increase in difficulty
+        # Create mines for this generation - keep it manageable
+        num_mines = min(4 + generation // 5, 8)  # Slower increase in difficulty
         mines = set_mines(num_mines)
 
         # Run simulation for this generation
@@ -548,10 +578,10 @@ def main():
             save_best_genome(best_agent, generation)
 
         # Display generation results
-        result_text = f"Generation {generation}: Best Fitness = {best_fitness:.2f}"
-        print(result_text)
+        result_text = f"Generation {generation}"
+        print(f"Generation {generation}: Best Fitness = {best_fitness:.2f}")
         draw_text(result_text)
-        pygame.time.delay(1000)
+        pygame.time.delay(500)
 
         # Save population for next generation
         previous_population = population
